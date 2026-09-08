@@ -79,7 +79,27 @@ body {
 		<link id="-gd-engine-icon" rel="icon" type="image/png" href="index.icon.png" />
 <link rel="apple-touch-icon" href="index.apple-touch-icon.png"/>
 
-	</head>
+		<script>
+// GitHub Pages caps web uploads at 25MiB; index.wasm ships gzipped as index.wasm.gz.
+// Intercept the engine's wasm fetch and decompress in-browser.
+(function() {
+  const origFetch = window.fetch.bind(window);
+  window.fetch = function(input, init) {
+    const url = typeof input === 'string' ? input : (input && input.url) || '';
+    if (url.endsWith('index.wasm')) {
+      const gz = 'index.wasm.gz';
+      return origFetch(gz, init).then(function(resp) {
+        if (!resp.ok) throw new Error('wasm.gz fetch failed: ' + resp.status);
+        const ds = new DecompressionStream('gzip');
+        const stream = resp.body.pipeThrough(ds);
+        return new Response(stream, {status: 200, headers: {'Content-Type': 'application/wasm'}});
+      });
+    }
+    return origFetch(input, init);
+  };
+})();
+</script>
+</head>
 	<body>
 		<canvas id="canvas">
 			Your browser does not support the canvas tag.
